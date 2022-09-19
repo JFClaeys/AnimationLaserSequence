@@ -117,7 +117,7 @@ void setup() {
 void loop() {
 
   CurrentTime = millis();
-  if (CurrentTime - LoopStartTime) <=  millisWait {  // looks like the delay has expired.  moving in to the next step
+  if ((CurrentTime - LoopStartTime) <=  millisWait) {  // looks like the delay has expired.  moving in to the next step
   
     byte SequenceType = pgm_read_byte( &sequences[looping].seqtype );
   
