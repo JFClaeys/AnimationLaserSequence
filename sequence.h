@@ -21,7 +21,7 @@ const TSeqElem sequences[] PROGMEM  = {
   { 0b11111111,  20, sqDATA },  // full open
   { 0b00000000,  20, sqDATA },  // full close
   { 0b11111111,  20, sqDATA },  // full open
-  { 0b00000000, 100, sqCHAR }   // full close
+  { 0b00000000, 100, sqCHAR }   // 1st  char, A
 };
 
 /*

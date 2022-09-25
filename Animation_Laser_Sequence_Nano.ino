@@ -37,10 +37,10 @@
 
 byte SequenceSize = 0;
 byte looping = 0;
-int  millisWait = 0;  //how many millisecnds before next step
+int  millisWait;  //how many millisecnds before next step
 unsigned long CurrentTime = 0;
 unsigned long LoopStartTime = 0;
-
+byte LoopBySection[sqCHAR + 1];  // contains the looping index needed for each type of operations rather tahn localluy defined
 
 void WriteShiftRegisterValue( byte value ) {
   digitalWrite(SR_LATCH_PIN, LOW);
@@ -55,7 +55,7 @@ void WriteShiftRegisterValue( byte value ) {
 /* define prototype for using defaiult parameter LineFeed*/   
 void PrintSerialLog( int aText, bool LineFeed = false );
 void PrintSerialLog( String aText, bool LineFeed = false);
-  
+
 void PrintSerialLog( String aText, bool LineFeed ) {
   #ifndef  STM32_CORE_VERSION  
   if (LineFeed) {
@@ -82,7 +82,7 @@ void setup() {
   pinMode(SR_LATCH_PIN, OUTPUT);
   pinMode(SR_CLOCK_PIN, OUTPUT);
   pinMode(SR_DATA_PIN, OUTPUT);
-  
+
  // Serial.begin(9600);
  // while (!Serial) {
  //   ; // wait for serial port to connect. Needed for native USB port only
@@ -112,44 +112,53 @@ void setup() {
 
   PrintSerialLog("-----", true); */
   SequenceSize = NUM_OF(sequences);
+  millisWait = 0;
+  LoopStartTime = millis();
+  LoopBySection[ sqCHAR ] = 0;
+  LoopBySection[ sqDATA ] = 0;
 }
+
   
 void loop() {
 
   CurrentTime = millis();
-  if ((CurrentTime - LoopStartTime) <=  millisWait) {  // looks like the delay has expired.  moving in to the next step
-  
+  if ((CurrentTime - LoopStartTime) >=  millisWait) {
+    /* looks like the delay has expired.  moving in to the next step */
     byte SequenceType = pgm_read_byte( &sequences[looping].seqtype );
-  
-    switch (SequenceType) {
-      case sqDATA :    
+    millisWait = pgm_read_byte( &sequences[looping].Delay) * 10;
 
-        WriteShiftRegisterValue( pgm_read_byte( &sequences[looping].Data ) );  // just shift one laser after the other
-        millisWait = pgm_read_byte( &sequences[looping].Delay) * 10;
-        delay(millisWait);   //10 millisecons can realy be the minimum we can track...
-        LoopStartTime = millis();  
-        break;
-      case sqCHAR :
-        byte Index = pgm_read_byte( &sequences[looping].Data );    
-        for (byte i = 0; i < NUM_LINES_CHAR; i++) {
-          byte k = pgm_read_byte( &alphas[Index].drawing[i]);
-          WriteShiftRegisterValue( k );
-          millisWait = pgm_read_byte( &sequences[looping].Delay) * 10;
-          delay(millisWait);       
-          LoopStartTime = millis();  
+    switch (SequenceType) {
+      case sqDATA :
+        /* just shift one laser after the other */
+        WriteShiftRegisterValue( pgm_read_byte( &sequences[looping].Data ) );  
+
+        /* once that frame has been set, we are ready to move to the next one upon end of delay */
+        looping ++;
+        if (looping >= SequenceSize) {
+         looping = 0;
         }
         break;
-    }
 
-    looping ++;
-    if (looping >= SequenceSize) {
-      looping = 0;
-    }
-  }  
-  else
-  {
-    CurrentTime = 0;
+      case sqCHAR :
+        /* this will point to the current character to show */
+        byte Index = pgm_read_byte( &sequences[looping].Data );
 
+        /* now, we are entering the looping part of the charactrer display itself */
+        byte k = pgm_read_byte( &alphas[Index].drawing[LoopBySection[ sqCHAR ]]);
+        WriteShiftRegisterValue( k );
+
+        LoopBySection[ sqCHAR ] ++;
+        if (LoopBySection[ sqCHAR ] >= NUM_LINES_CHAR) {
+          /* We are at the end of the char loop, so me move to the next sequence */
+          LoopBySection[ sqCHAR ] = 0;
+          looping ++;
+          if (looping >= SequenceSize) {
+            looping = 0;
+          }
+        }
+        break;
+    } 
+    /* Ready to move to next wait sequence */
+    LoopStartTime = millis();
   }
-      
 }
